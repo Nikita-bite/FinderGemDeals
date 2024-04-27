@@ -3,6 +3,9 @@ from threading import Thread
 import concurrent.futures
 
 
+time.sleep(7)
+
+
 def get_exchange_tickers(exchange_url, name):
     response = requests.get(exchange_url)
     tickers = response.json()
