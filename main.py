@@ -109,7 +109,7 @@ def update_large_orders(temp_all_large_orders, all_large_orders, n):
     else:
         for i in range(len(temp_all_large_orders)):
             if len(temp_all_large_orders[i]) != 0:
-                print("upd_s: ", temp_all_large_orders[i], i)
+                #print("upd_s: ", temp_all_large_orders[i], i)
                 ticker_price = []
                 del_list = []
                 for j in range(len(all_large_orders[i])):
@@ -120,21 +120,21 @@ def update_large_orders(temp_all_large_orders, all_large_orders, n):
                         is_exist = False
                         for k in range(len(temp_all_large_orders[i])):
                             if float(temp_all_large_orders[i][k]['price']) == float(all_large_orders[i][j]['price']) and temp_all_large_orders[i][k]['side'] == all_large_orders[i][j]['side']:
-                                print(" in 3 for: ", all_large_orders[i][j], temp_all_large_orders[i][k])
+                                #print(" in 3 for: ", all_large_orders[i][j], temp_all_large_orders[i][k])
                                 #print("next: ", len(all_large_orders[i]), len(temp_all_large_orders[i]))
                                 time_find = all_large_orders[i][j]['time_find']
                                 all_large_orders[i][j] = temp_all_large_orders[i][k]
                                 all_large_orders[i][j]['time_find'] = time_find
                                 is_exist = True
                             elif float(temp_all_large_orders[i][k]['price']) not in ticker_price:
-                                print(" in 4 for: ", all_large_orders[i][j], temp_all_large_orders[i][k])
+                                #print(" in 4 for: ", all_large_orders[i][j], temp_all_large_orders[i][k])
                                 #print("next: ", len(all_large_orders[i]), len(temp_all_large_orders[i]))
                                 all_large_orders[i].append(temp_all_large_orders[i][k])
                                 ticker_price.append(float(temp_all_large_orders[i][k]['price']))
                                 is_exist = True
                                 break
                             elif float(temp_all_large_orders[i][k]['price']) == float(all_large_orders[i][j]['price']) and temp_all_large_orders[i][k]['side'] != all_large_orders[i][j]['side']:
-                                print(" in 5 for: ", all_large_orders[i][j], temp_all_large_orders[i][k])
+                                #print(" in 5 for: ", all_large_orders[i][j], temp_all_large_orders[i][k])
                                 #print("next: ", len(all_large_orders[i]), len(temp_all_large_orders[i]))
                                 all_large_orders[i].append(temp_all_large_orders[i][k])
                                 is_exist = False
@@ -144,12 +144,12 @@ def update_large_orders(temp_all_large_orders, all_large_orders, n):
                     del_list.reverse()
                     for j in range(len(del_list)):
                         all_large_orders[i].pop(del_list[j])
-                    print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! all_large_orders: ", all_large_orders[i])
+                    #print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! all_large_orders: ", all_large_orders[i])
                 else:
                     for k in range(len(temp_all_large_orders[i])):
                         all_large_orders[i].append(temp_all_large_orders[i][k])
             else:
-                print("!!!!!!!!!!!!!!!!!!!!!! temp_all_large_orders: ", i, temp_all_large_orders[i])
+                #print("!!!!!!!!!!!!!!!!!!!!!! temp_all_large_orders: ", i, temp_all_large_orders[i])
                 if len(all_large_orders) > 0:
                     for j in range(len(all_large_orders[i])):
                         all_large_orders[i].pop(0)
@@ -244,6 +244,14 @@ def process():
             temp_all_large_orders = list(executor.map(find_large_orders, tickers))
         time.sleep(2)
 
+        response = requests.get('https://api.binance.com/api/v3/time')
+        if response.status_code == 200:
+            print("Used weight (1 minute):", response.headers.get('X-MBX-USED-WEIGHT-1M'))
+            print("Order count (10 seconds):", response.headers.get('X-MBX-ORDER-COUNT-10S'))
+            print("Order count (1 day):", response.headers.get('X-MBX-ORDER-COUNT-1D'))
+        else:
+            print("Failed to fetch data:", response.status_code)
+
         # for ticker in tickers:
         #     large_orders = find_large_orders(ticker)
         #     temp_all_large_orders.append(large_orders)
@@ -253,6 +261,7 @@ def process():
         if n > 0:
             alert(all_large_orders)
         n += 1
+
 
 
 Thread(target=process).start()
