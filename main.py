@@ -247,7 +247,10 @@ def process():
     all_large_orders = []
     n = 0
     while True:
-        speedtester()
+        try:
+            speedtester()
+        except Exception as e:
+            print("xyi: ", e)
         temp_all_large_orders = []
         with concurrent.futures.ThreadPoolExecutor() as executor:
             temp_all_large_orders = list(executor.map(find_large_orders, tickers))
