@@ -1,6 +1,8 @@
 import requests, time, telebot
 from threading import Thread
 import concurrent.futures
+import speedtest
+
 
 
 time.sleep(7)
@@ -236,9 +238,22 @@ def start_message(message):
 
 
 def process():
+
     all_large_orders = []
     n = 0
     while True:
+        print("speedtest")
+        st = speedtest.Speedtest()
+        st.get_best_server()
+        download_speed = st.download()
+        upload_speed = st.upload()
+        ping = st.results.ping
+        download_mbps = round(download_speed / 1_000_000, 2)
+        upload_mbps = round(upload_speed / 1_000_000, 2)
+        print(f"Скорость загрузки: {download_mbps} Мбит/с")
+        print(f"Скорость отдачи: {upload_mbps} Мбит/с")
+        print(f"Пинг: {ping} мс")
+
         temp_all_large_orders = []
         with concurrent.futures.ThreadPoolExecutor() as executor:
             temp_all_large_orders = list(executor.map(find_large_orders, tickers))
