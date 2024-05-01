@@ -2,6 +2,8 @@ import requests, time, telebot
 from threading import Thread
 import concurrent.futures
 import speedtest
+import ta
+import pandas as pd
 
 
 print(time.time())
@@ -19,12 +21,19 @@ def get_exchange_tickers(exchange_url, name):
         return [ticker['symbol'].replace('_', '') for ticker in tickers['data']]
 
 
+def get_exchange_precision(exchange_url):
+    response = requests.get(exchange_url)
+    tickers = response.json()
+    return {ticker['symbol']: ticker['quotePrecision'] for ticker in tickers['symbols']}
+
+
 print(time.time())
 
 
 # Получение тикеров монет на Binance Futures
 binance_spot_url = 'https://api.binance.com/api/v3/exchangeInfo'
 binance_spot_tickers = get_exchange_tickers(binance_spot_url, "binance")
+binance_spot_precision = get_exchange_precision(binance_spot_url)
 
 # Получение тикеров монет на Bitget Futures
 bitget_futures_url = 'https://api.bitget.com/api/v2/mix/market/tickers?productType=USDT-FUTURES'
@@ -66,8 +75,14 @@ def get_order_book(symbol):
     return data
 
 
+def calculate_volatility(symbol, candles_data):
+    df = pd.DataFrame([row[1:5] for row in candles_data],  columns=['open', 'high', 'low', 'close'])
+    df['NATR'] = ta.volatility.average_true_range(df['high'], df['low'], df['close'], n=14, fillna=False) / df['close'] * 100
+    return df['NATR'].tail(1)
+
+
 def calculate_average_volume(symbol):
-    candles_url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=15m&limit=11"
+    candles_url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval=1m&limit=151"
     fail = True
     while fail:
         try:
@@ -80,15 +95,40 @@ def calculate_average_volume(symbol):
     for i in range(len(candles_data) - 1):
         sum_volume += float(candles_data[i][5])
     volume = sum_volume / 150
-    return volume * 2
+
+    natr = calculate_volatility(symbol, candles_data)
+    return volume * 2, natr
 
 
-def find_large_orders(symbol):
-    time.sleep(1)
-    print("f: ", time.time(), symbol)
+def detect_mm_large_orders(large_orders):
+    list_index = []
+    i = 0
+    for bid in large_orders:
+        j = 0
+        for ask in large_orders:
+            if bid['side'] == 'BUY' and ask['side'] == 'SELL':
+                if abs(ask['diff'] + bid['diff']) < 0.2 and abs(ask['qty'] - bid['qty']) < 0.2 * max(ask['qty'], bid['qty']):
+                    list_index.append(i)
+                    list_index.append(j)
+            j += 1
+        i += 1
+
+    list_index = (set(list_index))
+    list_index = sorted(list_index, reverse=True)
+    while len(list_index) != 0:
+        print(large_orders[list_index[0]])
+        large_orders.pop(list_index[0])
+        list_index.pop(0)
+    return large_orders
+
+
+def find_large_orders(symbol, binance_spot_precision):
+    print("f start: ", time.time(), symbol, binance_spot_precision[symbol])
+    time.sleep(0.5)
     order_book = get_order_book(symbol)
-    time.sleep(1)
-    average_volume = calculate_average_volume(symbol)
+    time.sleep(0.25)
+    average_volume, natr = calculate_average_volume(symbol)
+    print("f end: ", time.time(), symbol, "natr: ", natr)
 
     large_orders = []
     if len(order_book['bids']) == 0 and len(order_book['bids']) == 0:
@@ -96,30 +136,35 @@ def find_large_orders(symbol):
 
     curr_price = float(order_book['bids'][0][0])
     for bid in order_book['bids']:
-        if float(bid[1]) > average_volume * 15 and float(bid[1]) * float(bid[0]) >= 100000:
+        if (float(bid[1]) > average_volume * 15 and float(bid[1]) * float(bid[0]) >= 100000 and float(binance_spot_precision[symbol]) > 3) or (float(bid[1]) > average_volume * 45 and float(bid[1]) * float(bid[0]) >= 250000 and float(binance_spot_precision[symbol]) <= 3):
             large_orders.append({
                 'ticker': symbol,
                 'side': 'BUY',
                 'price': bid[0],
                 'diff': -round((curr_price - float(bid[0])) / curr_price * 100, 2),
                 'volume': round(float(bid[1]) * float(bid[0])),
+                'qty': round(float(bid[1]), 2),
                 'time_corr': round(float(bid[1]) / average_volume, 2),
-                'time_find': round(time.time())
+                'time_find': round(time.time()),
+                'natr': round(natr, 2)
             })
 
     curr_price = float(order_book['asks'][0][0])
     for ask in order_book['asks']:
-        if float(ask[1]) > average_volume * 15 and float(ask[1]) * float(ask[0]) >= 100000:
+        if (float(ask[1]) > average_volume * 15 and float(ask[1]) * float(ask[0]) >= 100000 and float(binance_spot_precision[symbol]) > 3) or (float(ask[1]) > average_volume * 45 and float(ask[1]) * float(ask[0]) >= 250000 and float(binance_spot_precision[symbol]) <= 3):
             large_orders.append({
                 'ticker': symbol,
                 'side': 'SELL',
                 'price': ask[0],
                 'diff': round((float(ask[0]) - curr_price) / curr_price * 100, 2),
                 'volume': round(float(ask[1]) * float(ask[0])),
+                'qty': round(float(ask[1]), 2),
                 'time_corr': round(float(ask[1]) / average_volume, 2),
-                'time_find': round(time.time())
+                'time_find': round(time.time()),
+                'natr': round(natr, 2)
             })
 
+    large_orders = detect_mm_large_orders(large_orders)
     return large_orders
 
 
@@ -171,7 +216,7 @@ def alert(all_large_orders):
         for j in range(len(all_large_orders[i])):
             ticker = all_large_orders[i][j]['ticker']
             duration = (time.time() - all_large_orders[i][j]["time_find"]) / 60
-            if abs(all_large_orders[i][j]['diff']) < 1 and duration > 1 and ticker != "USDCUSDT":
+            if (abs(all_large_orders[i][j]['diff']) < 0.8 or abs(all_large_orders[i][j]['diff']) < abs(all_large_orders[i][j]['natr']) * 2) and duration > 1 and ticker != "USDCUSDT":
                 for client, tickers in clients.items():
                     if ticker not in tickers.keys() or time.time() - tickers[ticker] > 1800:
                         if ticker == 'BCHUSDT':
@@ -257,7 +302,7 @@ def process():
         time.sleep(2)
         all_large_orders = update_large_orders(temp_all_large_orders, all_large_orders, n)
         if n > 0:
-            alert(all_large_orders)
+            alert(all_large_orders, binance_spot_precision)
         n += 1
 
 
