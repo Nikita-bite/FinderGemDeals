@@ -122,8 +122,8 @@ def detect_mm_large_orders(large_orders):
     return large_orders
 
 
-def find_large_orders(symbol, binance_spot_precision):
-    print("f start: ", time.time(), symbol, binance_spot_precision[symbol])
+def find_large_orders(symbol, precision):
+    print("f start: ", time.time(), symbol, precision)
     time.sleep(0.5)
     order_book = get_order_book(symbol)
     time.sleep(0.25)
@@ -136,7 +136,7 @@ def find_large_orders(symbol, binance_spot_precision):
 
     curr_price = float(order_book['bids'][0][0])
     for bid in order_book['bids']:
-        if (float(bid[1]) > average_volume * 15 and float(bid[1]) * float(bid[0]) >= 100000 and float(binance_spot_precision[symbol]) > 3) or (float(bid[1]) > average_volume * 45 and float(bid[1]) * float(bid[0]) >= 250000 and float(binance_spot_precision[symbol]) <= 3):
+        if (float(bid[1]) > average_volume * 15 and float(bid[1]) * float(bid[0]) >= 100000 and float(precision) > 3) or (float(bid[1]) > average_volume * 45 and float(bid[1]) * float(bid[0]) >= 250000 and float(precision) <= 3):
             large_orders.append({
                 'ticker': symbol,
                 'side': 'BUY',
@@ -151,7 +151,7 @@ def find_large_orders(symbol, binance_spot_precision):
 
     curr_price = float(order_book['asks'][0][0])
     for ask in order_book['asks']:
-        if (float(ask[1]) > average_volume * 15 and float(ask[1]) * float(ask[0]) >= 100000 and float(binance_spot_precision[symbol]) > 3) or (float(ask[1]) > average_volume * 45 and float(ask[1]) * float(ask[0]) >= 250000 and float(binance_spot_precision[symbol]) <= 3):
+        if (float(ask[1]) > average_volume * 15 and float(ask[1]) * float(ask[0]) >= 100000 and float(precision) > 3) or (float(ask[1]) > average_volume * 45 and float(ask[1]) * float(ask[0]) >= 250000 and float(precision) <= 3):
             large_orders.append({
                 'ticker': symbol,
                 'side': 'SELL',
