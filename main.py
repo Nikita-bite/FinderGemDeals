@@ -77,7 +77,7 @@ def get_order_book(symbol):
 
 def calculate_volatility(symbol, candles_data):
     df = pd.DataFrame([row[1:5] for row in candles_data],  columns=['open', 'high', 'low', 'close'])
-    df['NATR'] = ta.volatility.average_true_range(df['high'], df['low'], df['close'], n=14, fillna=False) / df['close'] * 100
+    df['NATR'] = ta.volatility.average_true_range(df['high'], df['low'], df['close'], window=14, fillna=False) / df['close'] * 100
     return df['NATR'].tail(1)
 
 
