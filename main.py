@@ -297,12 +297,13 @@ def process():
         except Exception as e:
             print("xyi: ", e)
         temp_all_large_orders = []
+        ticker_pairs = [(ticker, binance_spot_precision[ticker]) for ticker in tickers if ticker in binance_spot_precision]
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            temp_all_large_orders = list(executor.map(find_large_orders, tickers))
+            temp_all_large_orders = list(executor.map(lambda pair: find_large_orders(*pair), ticker_pairs))
         time.sleep(2)
         all_large_orders = update_large_orders(temp_all_large_orders, all_large_orders, n)
         if n > 0:
-            alert(all_large_orders, binance_spot_precision)
+            alert(all_large_orders)
         n += 1
 
 
