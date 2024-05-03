@@ -24,7 +24,7 @@ def get_exchange_tickers(exchange_url, name):
 def get_exchange_precision(exchange_url):
     response = requests.get(exchange_url)
     tickers = response.json()
-    return {ticker['symbol']: ticker['quotePrecision'] for ticker in tickers['symbols']}
+    return {ticker['symbol']: ticker['quoteAssetPrecision'] for ticker in tickers['symbols']}
 
 
 print(time.time())
@@ -123,12 +123,12 @@ def detect_mm_large_orders(large_orders):
 
 
 def find_large_orders(symbol, precision):
-    #print("f start: ", time.time(), symbol, precision)
+    print("f start: ", time.time(), symbol, precision)
     time.sleep(0.5)
     order_book = get_order_book(symbol)
     time.sleep(0.25)
     average_volume, natr = calculate_average_volume(symbol)
-    #print("f end: ", time.time(), symbol, "natr: ", natr)
+    print("f end: ", time.time(), symbol, "natr: ", natr)
 
     large_orders = []
     if len(order_book['bids']) == 0 and len(order_book['bids']) == 0:
@@ -216,7 +216,7 @@ def alert(all_large_orders):
         for j in range(len(all_large_orders[i])):
             ticker = all_large_orders[i][j]['ticker']
             duration = (time.time() - all_large_orders[i][j]["time_find"]) / 60
-            if (abs(all_large_orders[i][j]['diff']) < 0.618 or abs(all_large_orders[i][j]['diff']) < abs(all_large_orders[i][j]['natr']) * 2) and duration > 1 and ticker != "USDCUSDT":
+            if (abs(all_large_orders[i][j]['diff']) < 0.618 or abs(all_large_orders[i][j]['diff']) < abs(all_large_orders[i][j]['natr']) * 2) and duration > 13 and ticker != "USDCUSDT":
                 for client, tickers in clients.items():
                     if ticker not in tickers.keys() or time.time() - tickers[ticker] > 1800:
                         if ticker == 'BCHUSDT':
@@ -228,6 +228,7 @@ amount: {all_large_orders[i][j]["volume"]}$
 difference: {all_large_orders[i][j]["diff"]}% 
 eating time: {all_large_orders[i][j]["time_corr"]}m
 duration: {round(duration, 2)}m
+natr: {round(all_large_orders[i][j]["natr"], 2)}m
                             """
                         elif all_large_orders[i][j]["volume"] > 1000000:
                             str_msg = f"""
@@ -238,6 +239,7 @@ price: {all_large_orders[i][j]["price"]}
 difference: {all_large_orders[i][j]["diff"]}% 
 eating time: {all_large_orders[i][j]["time_corr"]}m
 duration: {round(duration, 2)}m
+natr: {round(all_large_orders[i][j]["natr"], 2)}m
                             """
                         elif all_large_orders[i][j]["time_corr"] > 30:
                             str_msg = f"""
@@ -248,6 +250,7 @@ amount: {all_large_orders[i][j]["volume"]}$
 difference: {all_large_orders[i][j]["diff"]}% 
 *eating time: {all_large_orders[i][j]["time_corr"]}m*
 duration: {round(duration, 2)}m
+natr: {round(all_large_orders[i][j]["natr"], 2)}m
                             """
                         elif duration > 600:
                             str_msg = f"""
@@ -258,6 +261,7 @@ amount: {all_large_orders[i][j]["volume"]}$
 difference: {all_large_orders[i][j]["diff"]}% 
 eating time: {all_large_orders[i][j]["time_corr"]}m
 *duration: {round(duration, 2)}m*
+natr: {round(all_large_orders[i][j]["natr"], 2)}m
                             """
                         else:
                             str_msg = f"""
@@ -268,6 +272,7 @@ amount: {all_large_orders[i][j]["volume"]}$
 difference: {all_large_orders[i][j]["diff"]}% 
 eating time: {all_large_orders[i][j]["time_corr"]}m
 duration: {round(duration, 2)}m
+natr: {round(all_large_orders[i][j]["natr"], 2)}m
                             """
 
                         bot.send_message(client, str_msg, parse_mode="Markdown")
