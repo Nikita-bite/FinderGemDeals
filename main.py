@@ -11,7 +11,7 @@ import traceback
 
 print(time.time())
 tracemalloc.start()
-time.sleep(1)
+time.sleep(5)
 all_order_books = {}
 counter = {}
 all_large_orders = {}
